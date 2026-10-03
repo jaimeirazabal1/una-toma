@@ -41,6 +41,14 @@ video en dos formatos listos para subir:
 - **Filtros a un toque:** Natural, Glow, Rosado, Cálido, Frío, Vívido, Cine, Vintage y B/N, con control de
   intensidad. Se ven en vivo en el preview, se pueden cambiar mientras grabas y quedan en los dos videos
   exportados. El video se graba limpio y el filtro se aplica al exportar.
+- **Suavizado de piel** con shader propio (filtro bilateral que solo actúa sobre tonos de piel y
+  respeta los bordes), ajustable y cambiable mientras grabas.
+- **Reencuadre del horizontal:** en el modo "Ambos" arrastras la franja 16:9 arriba o abajo sobre el
+  cuadro vertical y el video horizontal sale exactamente de ahí.
+- **Vertical ligero:** exporta el original 4K o una versión 1080×1920 mucho más liviana.
+- **Espejo del texto** para leer a través de un cristal de teleprompter.
+- **Exportación en segundo plano** (WorkManager + servicio en primer plano) con notificación de progreso:
+  puedes minimizar la app mientras se procesa.
 - **Exportación automática** a la galería (`Movies/Teleprompter`) y botón para compartir ambos archivos.
 - El guion y los ajustes se guardan solos.
 
@@ -82,6 +90,12 @@ Decisiones de diseño:
   (`RgbMatrix` de Media3), así que lo que ves es lo que sale. La intensidad es una interpolación lineal.
 - **Línea de tiempo de filtros.** Si cambias de filtro grabando, se anota el instante y la exportación
   aplica cada filtro en su tramo (`FilterTimeline`).
+- **Suavizado de piel.** `SkinSmoothingEffect` (GLSL, Media3) y `PreviewFilter` (AGSL, Android 13+)
+  implementan el mismo algoritmo: máscara de piel en YCbCr + filtro bilateral de 16 muestras. En Android
+  10-12 el suavizado se aplica al exportar pero no se previsualiza.
+- **Exportación como trabajo.** `ExportWorker` (CoroutineWorker) corre como servicio en primer plano;
+  `ExportCoordinator` publica el estado y la UI solo lo observa. La grabación se guarda en `filesDir`
+  para que el sistema no la borre mientras espera.
 - **Una sola grabación, dos salidas.** Evita grabar dos veces y garantiza que
   ambos formatos son exactamente la misma toma.
 - **`TeleprompterMath` separado de Compose.** La lógica del scroll es una
@@ -103,19 +117,16 @@ o superior (minSdk 29). La cámara requiere un dispositivo físico.
 
 ## Limitaciones conocidas
 
-- La exportación corre en primer plano; si minimizas la app durante una
-  exportación larga puede pausarse.
-- El video horizontal es solo la franja central del cuadro vertical.
+- El reencuadre del horizontal es solo vertical: la franja ocupa siempre todo el ancho.
+- En Android 10-12 el suavizado de piel no se ve en el preview (sí en el video exportado).
+- Con filtros, suavizado o vertical 1080×1920 el vertical se re-codifica, así que tarda más que copiar el original.
 - El build release aún no está minificado ni firmado.
 - No hay ícono monocromático para los íconos temáticos de Android 13+.
 
 ## Hoja de ruta
 
-- [ ] Exportación en segundo plano (WorkManager + servicio en primer plano)
-- [ ] Reencuadre manual de la franja horizontal
-- [ ] Opción de bajar el vertical a 1080×1920 para archivos más ligeros
-- [ ] Filtros de retoque de piel (suavizado) con shader propio
-- [ ] Espejo del texto para uso con cristal de teleprompter
+- [ ] Reencuadre también en horizontal (zoom y desplazamiento libres)
+- [ ] Retoque de piel avanzado (ojos, dientes, tono)
 - [ ] Ícono monocromático y localización a inglés
 
 ## Licencia
