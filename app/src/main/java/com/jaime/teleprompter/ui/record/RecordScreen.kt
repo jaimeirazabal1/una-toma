@@ -156,19 +156,31 @@ fun RecordScreen(
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
-                if (showSettings) {
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.8f),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
-                    ) {
-                        Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
-                            TeleprompterSettingsControls(
-                                settings = settings.teleprompter,
-                                onChange = viewModel::updateTeleprompter,
-                            )
+                // Capas sobre la imagen (no ocupan espacio): el preview conserva siempre su tamaño.
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                    if (showSettings) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 6.dp),
+                        ) {
+                            Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
+                                TeleprompterSettingsControls(
+                                    settings = settings.teleprompter,
+                                    onChange = viewModel::updateTeleprompter,
+                                )
+                            }
                         }
                     }
+                    FilterBar(
+                        selection = filter,
+                        onSelect = viewModel::selectFilter,
+                        onIntensity = viewModel::setFilterIntensity,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .padding(vertical = 4.dp),
+                    )
                 }
                 ui.errorRes?.let { res ->
                     Surface(
@@ -183,12 +195,6 @@ fun RecordScreen(
                     }
                 }
             }
-            FilterBar(
-                selection = filter,
-                onSelect = viewModel::selectFilter,
-                onIntensity = viewModel::setFilterIntensity,
-                modifier = Modifier.padding(top = 6.dp),
-            )
             BottomBar(
                 ui = ui,
                 teleprompter = teleprompter,
