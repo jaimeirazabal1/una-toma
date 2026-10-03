@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jaime.teleprompter.R
 import com.jaime.teleprompter.domain.Lens
 import com.jaime.teleprompter.domain.RecordingQuality
+import com.jaime.teleprompter.domain.VerticalOutput
 import com.jaime.teleprompter.ui.components.TeleprompterSettingsControls
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,6 +74,21 @@ fun ScriptScreen(viewModel: ScriptViewModel, onRecord: () -> Unit) {
                         selected = settings.recording.quality == q,
                         onClick = { viewModel.updateRecording { it.copy(quality = q) } },
                         shape = SegmentedButtonDefaults.itemShape(i, qualities.size),
+                        label = { Text(stringResource(label)) },
+                    )
+                }
+            }
+            Text(stringResource(R.string.vertical_output_label))
+            val outputs = listOf(
+                VerticalOutput.ORIGINAL to R.string.vertical_original,
+                VerticalOutput.FHD to R.string.vertical_fhd,
+            )
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                outputs.forEachIndexed { i, (output, label) ->
+                    SegmentedButton(
+                        selected = settings.recording.verticalOutput == output,
+                        onClick = { viewModel.updateRecording { it.copy(verticalOutput = output) } },
+                        shape = SegmentedButtonDefaults.itemShape(i, outputs.size),
                         label = { Text(stringResource(label)) },
                     )
                 }

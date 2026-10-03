@@ -6,10 +6,15 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import android.media.MediaMetadataRetriever
 import androidx.media3.common.Effect
+import androidx.media3.effect.Crop
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.RgbMatrix
+import com.jaime.teleprompter.domain.ExportJob
 import com.jaime.teleprompter.domain.FilterTimeline
+import com.jaime.teleprompter.domain.HorizontalFrame
+import com.jaime.teleprompter.domain.VerticalOutput
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
@@ -31,25 +36,59 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * Genera la versión horizontal (1920x1080) a partir del vídeo vertical original:
- * recorte central 16:9 + reescalado, re-codificado en H.264/AAC (compatible con YouTube).
- * Con una grabación 4K vertical (2160 px de ancho) el resultado es 1080p reales, sin escalar hacia arriba.
+ * Genera las versiones de salida a partir del video vertical grabado: la horizontal (recorte 16:9
+ * reposicionable a 1920x1080) y, si hace falta, la vertical re-codificada (1080x1920 y/o con filtros).
+ * Con una grabación 4K vertical (2160 px de ancho) el horizontal sale en 1080p reales, sin escalar hacia arriba.
  */
 @OptIn(UnstableApi::class)
 class VideoExporter(private val context: Context) {
 
-    /** Vertical con filtros: se re-codifica a la resolución original aplicando el filtro de cada tramo. */
-    suspend fun exportVertical(input: File, output: File, filters: FilterTimeline, onProgress: (Float) -> Unit) =
-        transcode(input, output, listOfNotNull(filterEffect(filters)), VERTICAL_BITRATE, onProgress)
-
-    /** Horizontal: recorte central 16:9 a 1920x1080 y, si hay, filtros. */
-    suspend fun exportHorizontal(input: File, output: File, filters: FilterTimeline, onProgress: (Float) -> Unit) {
-        val crop = Presentation.createForWidthAndHeight(OUT_WIDTH, OUT_HEIGHT, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
-        transcode(input, output, listOfNotNull(crop, filterEffect(filters)), OUT_BITRATE, onProgress)
+    /**
+     * Vertical: se re-codifica solo si hace falta (bajar a 1080x1920 o aplicar filtros/suavizado).
+     * Sin nada de eso el coordinador copia el original sin tocarlo.
+     */
+    suspend fun exportVertical(input: File, output: File, job: ExportJob, onProgress: (Float) -> Unit) {
+        val fhd = job.verticalOutput == VerticalOutput.FHD
+        val effects = buildList {
+            if (fhd) add(Presentation.createForWidthAndHeight(FHD_WIDTH, FHD_HEIGHT, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+            addAll(lookEffects(job.filters))
+        }
+        transcode(input, output, effects, if (fhd) FHD_BITRATE else ORIGINAL_BITRATE, onProgress)
     }
 
-    private fun filterEffect(filters: FilterTimeline): Effect? =
-        if (filters.isIdentity) null else TimelineRgbMatrix(filters)
+    /** Horizontal: franja 16:9 elegida por el usuario, a 1920x1080, más filtros y suavizado. */
+    suspend fun exportHorizontal(input: File, output: File, job: ExportJob, onProgress: (Float) -> Unit) {
+        val (width, height) = probeUprightSize(input)
+        val band = HorizontalFrame.bandFraction(width, height)
+        val (bottom, top) = HorizontalFrame.cropNdc(job.horizontalFrameCenter, band)
+        val effects = buildList {
+            add(Crop(-1f, 1f, bottom, top))
+            add(Presentation.createForWidthAndHeight(OUT_WIDTH, OUT_HEIGHT, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+            addAll(lookEffects(job.filters))
+        }
+        transcode(input, output, effects, HORIZONTAL_BITRATE, onProgress)
+    }
+
+    /** Suavizado primero (necesita el color original para detectar piel) y luego el filtro de color. */
+    private fun lookEffects(filters: FilterTimeline): List<Effect> = buildList {
+        if (filters.hasSmoothing) add(SkinSmoothingEffect(filters))
+        if (filters.hasColor) add(TimelineRgbMatrix(filters))
+    }
+
+    /** Tamaño del video ya orientado (tiene en cuenta los metadatos de rotación). */
+    private fun probeUprightSize(file: File): Pair<Int, Int> {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(file.absolutePath)
+            fun meta(key: Int) = retriever.extractMetadata(key)?.toIntOrNull() ?: 0
+            val w = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+            val h = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+            val rotation = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+            return if (rotation == 90 || rotation == 270) h to w else w to h
+        } finally {
+            retriever.release()
+        }
+    }
 
     /** Matriz de color que cambia con el tiempo según la línea de tiempo de filtros. */
     private class TimelineRgbMatrix(private val timeline: FilterTimeline) : RgbMatrix {
@@ -129,8 +168,11 @@ class VideoExporter(private val context: Context) {
     private companion object {
         const val OUT_WIDTH = 1920
         const val OUT_HEIGHT = 1080
-        const val OUT_BITRATE = 16_000_000
-        const val VERTICAL_BITRATE = 40_000_000
+        const val FHD_WIDTH = 1080
+        const val FHD_HEIGHT = 1920
+        const val HORIZONTAL_BITRATE = 16_000_000
+        const val FHD_BITRATE = 16_000_000
+        const val ORIGINAL_BITRATE = 40_000_000
         const val PROGRESS_POLL_MS = 200L
     }
 }

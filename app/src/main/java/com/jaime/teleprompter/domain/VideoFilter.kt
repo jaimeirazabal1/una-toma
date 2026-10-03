@@ -30,12 +30,21 @@ enum class VideoFilter(val grade: ColorGrade) {
     BLACK_AND_WHITE(ColorGrade(contrast = 1.1f, saturation = 0f)),
 }
 
-/** Filtro elegido + cuánto se aplica (0 = nada, 1 = completo). */
-data class FilterSelection(val filter: VideoFilter = VideoFilter.ORIGINAL, val intensity: Float = 1f) {
-    val isIdentity: Boolean get() = filter == VideoFilter.ORIGINAL || intensity <= 0f
+/**
+ * Look elegido: filtro de color + cuánto se aplica (0..1) + suavizado de piel (0..1).
+ * El suavizado es independiente del filtro de color.
+ */
+data class FilterSelection(
+    val filter: VideoFilter = VideoFilter.ORIGINAL,
+    val intensity: Float = 1f,
+    val smoothing: Float = 0f,
+) {
+    val colorIsIdentity: Boolean get() = filter == VideoFilter.ORIGINAL || intensity <= 0f
+    val hasSmoothing: Boolean get() = smoothing > 0f
+    val isIdentity: Boolean get() = colorIsIdentity && !hasSmoothing
 
     fun affine(): ColorAffine =
-        if (isIdentity) ColorAffine.IDENTITY else ColorAffine.IDENTITY.blend(filter.grade.toAffine(), intensity)
+        if (colorIsIdentity) ColorAffine.IDENTITY else ColorAffine.IDENTITY.blend(filter.grade.toAffine(), intensity)
 
     companion object {
         val NONE = FilterSelection()
@@ -43,29 +52,71 @@ data class FilterSelection(val filter: VideoFilter = VideoFilter.ORIGINAL, val i
 }
 
 /**
- * Qué filtro estaba activo en cada instante de la grabación. Permite cambiar de filtro mientras
- * grabas: la exportación aplica cada uno en su tramo.
+ * Qué look estaba activo en cada instante de la grabación. Permite cambiar de filtro o de suavizado
+ * mientras grabas: la exportación aplica cada uno en su tramo.
  */
-class FilterTimeline private constructor(private val entries: List<Entry>) {
+class FilterTimeline private constructor(val entries: List<Entry>) {
 
     data class Entry(val atMs: Long, val selection: FilterSelection)
 
-    val isIdentity: Boolean get() = entries.all { it.selection.isIdentity }
+    val hasColor: Boolean get() = entries.any { !it.selection.colorIsIdentity }
+    val hasSmoothing: Boolean get() = entries.any { it.selection.hasSmoothing }
+    val isIdentity: Boolean get() = !hasColor && !hasSmoothing
 
     fun selectionAt(ms: Long): FilterSelection =
         entries.lastOrNull { it.atMs <= ms }?.selection ?: entries.firstOrNull()?.selection ?: FilterSelection.NONE
 
+    /** Forma con tipos primitivos, para pasarla a WorkManager (`Data` no admite objetos). */
+    class Packed(
+        val atMs: LongArray,
+        val filters: IntArray,
+        val intensities: FloatArray,
+        val smoothing: FloatArray,
+    )
+
+    fun pack() = Packed(
+        atMs = LongArray(entries.size) { entries[it].atMs },
+        filters = IntArray(entries.size) { entries[it].selection.filter.ordinal },
+        intensities = FloatArray(entries.size) { entries[it].selection.intensity },
+        smoothing = FloatArray(entries.size) { entries[it].selection.smoothing },
+    )
+
     class Builder(initial: FilterSelection) {
         private val entries = mutableListOf(Entry(0L, initial))
 
+        /**
+         * Arrastrar un slider genera decenas de cambios por segundo: los cambios muy seguidos se funden
+         * en uno y hay un tope de entradas (WorkManager limita el tamaño de los datos a ~10 KB).
+         */
         fun add(atMs: Long, selection: FilterSelection) {
-            entries += Entry(maxOf(atMs, entries.last().atMs), selection)
+            val last = entries.last()
+            val time = maxOf(atMs, last.atMs)
+            val collapse = entries.size > 1 && (time - last.atMs < MIN_GAP_MS || entries.size >= MAX_ENTRIES)
+            if (collapse) entries[entries.lastIndex] = Entry(last.atMs, selection) else entries += Entry(time, selection)
         }
 
         fun build() = FilterTimeline(entries.toList())
     }
 
     companion object {
+        const val MIN_GAP_MS = 200L
+        const val MAX_ENTRIES = 150
+
         val NONE = FilterTimeline(listOf(Entry(0L, FilterSelection.NONE)))
+
+        fun unpack(packed: Packed): FilterTimeline {
+            val filters = VideoFilter.entries
+            val list = packed.atMs.indices.map { i ->
+                Entry(
+                    packed.atMs[i],
+                    FilterSelection(
+                        filter = filters.getOrElse(packed.filters[i]) { VideoFilter.ORIGINAL },
+                        intensity = packed.intensities[i],
+                        smoothing = packed.smoothing[i],
+                    ),
+                )
+            }
+            return if (list.isEmpty()) NONE else FilterTimeline(list)
+        }
     }
 }

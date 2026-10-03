@@ -11,9 +11,12 @@ import com.jaime.teleprompter.AppContainer
 import com.jaime.teleprompter.R
 import com.jaime.teleprompter.camera.CameraRecorder
 import com.jaime.teleprompter.camera.RecordingEvent
-import com.jaime.teleprompter.data.ExportCoordinator
+import com.jaime.teleprompter.data.ExportScheduler
+import com.jaime.teleprompter.domain.ExportJob
+import com.jaime.teleprompter.domain.HorizontalFrame
 import com.jaime.teleprompter.data.SettingsRepository
 import com.jaime.teleprompter.domain.PreviewMode
+import com.jaime.teleprompter.domain.VerticalOutput
 import com.jaime.teleprompter.domain.VideoFilter
 import com.jaime.teleprompter.domain.RecordingSettings
 import com.jaime.teleprompter.domain.TeleprompterSettings
@@ -51,7 +54,7 @@ data class RecordUiState(
 class RecordViewModel(
     private val settingsRepository: SettingsRepository,
     private val recorder: CameraRecorder,
-    private val exports: ExportCoordinator,
+    private val scheduler: ExportScheduler,
 ) : ViewModel() {
 
     /** null hasta que DataStore emite: evita enlazar la cámara con valores por defecto y reenlazar. */
@@ -73,17 +76,31 @@ class RecordViewModel(
     private val _filter = MutableStateFlow(FilterSelection.NONE)
     val filter: StateFlow<FilterSelection> = _filter.asStateFlow()
 
+    /** Centro vertical de la franja 16:9 (reencuadre del horizontal). */
+    private val _bandCenter = MutableStateFlow(HorizontalFrame.DEFAULT_CENTER)
+    val bandCenter: StateFlow<Float> = _bandCenter.asStateFlow()
+
     private var timelineBuilder: FilterTimeline.Builder? = null
     private var recordingStartedAt = 0L
 
     init {
         viewModelScope.launch {
             val saved = settingsRepository.settings.first().recording
-            _filter.value = FilterSelection(saved.filter, saved.filterIntensity)
-            _filter.drop(1).debounce(400).collect { selection ->
-                settingsRepository.updateRecording {
-                    it.copy(filter = selection.filter, filterIntensity = selection.intensity)
+            _filter.value = FilterSelection(saved.filter, saved.filterIntensity, saved.skinSmoothing)
+            _bandCenter.value = saved.horizontalFrameCenter
+            launch {
+                _filter.drop(1).debounce(400).collect { selection ->
+                    settingsRepository.updateRecording {
+                        it.copy(
+                            filter = selection.filter,
+                            filterIntensity = selection.intensity,
+                            skinSmoothing = selection.smoothing,
+                        )
+                    }
                 }
+            }
+            _bandCenter.drop(1).debounce(400).collect { center ->
+                settingsRepository.updateRecording { it.copy(horizontalFrameCenter = center) }
             }
         }
     }
@@ -91,6 +108,12 @@ class RecordViewModel(
     fun selectFilter(filter: VideoFilter) = changeFilter(_filter.value.copy(filter = filter))
 
     fun setFilterIntensity(intensity: Float) = changeFilter(_filter.value.copy(intensity = intensity))
+
+    fun setSkinSmoothing(value: Float) = changeFilter(_filter.value.copy(smoothing = value))
+
+    fun setBandCenter(center: Float) {
+        _bandCenter.value = HorizontalFrame.clampCenter(center, HorizontalFrame.PORTRAIT_BAND_FRACTION)
+    }
 
     private fun changeFilter(selection: FilterSelection) {
         _filter.value = selection
@@ -152,7 +175,14 @@ class RecordViewModel(
             is RecordingEvent.Progress -> _ui.value = _ui.value.copy(elapsedMs = event.elapsedMs)
             is RecordingEvent.Finished -> {
                 _ui.value = RecordUiState()
-                exports.start(event.file, timelineBuilder?.build() ?: FilterTimeline.NONE)
+                scheduler.enqueue(
+                    ExportJob(
+                        sourcePath = event.file.absolutePath,
+                        filters = timelineBuilder?.build() ?: FilterTimeline.NONE,
+                        horizontalFrameCenter = _bandCenter.value,
+                        verticalOutput = settings.value?.recording?.verticalOutput ?: VerticalOutput.ORIGINAL,
+                    ),
+                )
                 timelineBuilder = null
                 _finished.trySend(Unit)
             }
@@ -174,7 +204,7 @@ class RecordViewModel(
                 RecordViewModel(
                     container.settingsRepository,
                     container.newCameraRecorder(),
-                    container.exportCoordinator,
+                    container.exportScheduler,
                 )
             }
         }

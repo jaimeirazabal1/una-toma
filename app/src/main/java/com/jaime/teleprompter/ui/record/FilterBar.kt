@@ -1,11 +1,6 @@
 package com.jaime.teleprompter.ui.record
 
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
-import android.view.View
 import androidx.annotation.StringRes
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -67,9 +63,22 @@ fun FilterBar(
     selection: FilterSelection,
     onSelect: (VideoFilter) -> Unit,
     onIntensity: (Float) -> Unit,
+    onSmoothing: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.smoothing_label, (selection.smoothing * 100).roundToInt()),
+                color = Color.White,
+                fontSize = 12.sp,
+                modifier = Modifier.width(112.dp),
+            )
+            Slider(value = selection.smoothing, onValueChange = onSmoothing, modifier = Modifier.weight(1f))
+        }
         // Siempre ocupa su espacio (atenuado sin filtro) para que el preview no se redimensione al elegir.
         val active = selection.filter != VideoFilter.ORIGINAL
         run {
@@ -81,6 +90,7 @@ fun FilterBar(
                     stringResource(R.string.filter_intensity, (selection.intensity * 100).roundToInt()),
                     color = Color.White,
                     fontSize = 12.sp,
+                    modifier = Modifier.width(112.dp),
                 )
                 Slider(
                     value = selection.intensity,
@@ -122,17 +132,5 @@ fun FilterBar(
                 }
             }
         }
-    }
-}
-
-/** Aplica el filtro al preview en vivo con la misma matriz que usará la exportación. */
-fun PreviewView.applyFilter(selection: FilterSelection) {
-    if (selection.isIdentity) {
-        setLayerType(View.LAYER_TYPE_NONE, null)
-    } else {
-        val paint = Paint().apply {
-            colorFilter = ColorMatrixColorFilter(ColorMatrix(selection.affine().toAndroidColorMatrix()))
-        }
-        setLayerType(View.LAYER_TYPE_HARDWARE, paint)
     }
 }

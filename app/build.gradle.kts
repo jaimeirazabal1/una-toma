@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.androidx.media3.common)
 
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)

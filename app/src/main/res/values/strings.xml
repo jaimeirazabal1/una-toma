@@ -46,6 +46,17 @@
     <string name="filter_bw">B/N</string>
     <string name="filter_intensity">Intensidad %1$d%%</string>
 
+    <string name="smoothing_label">Piel suave %1$d%%</string>
+    <string name="band_handle">16:9 ⇅</string>
+    <string name="mirror_label">Espejo del texto (para cristal de teleprompter)</string>
+    <string name="vertical_output_label">Vertical exportado</string>
+    <string name="vertical_original">Original</string>
+    <string name="vertical_fhd">1080×1920 (ligero)</string>
+    <string name="notification_channel_export">Exportación de videos</string>
+    <string name="notification_exporting">Exportando tu video…</string>
+    <string name="notification_done">Tu video está listo</string>
+    <string name="notification_failed">La exportación falló</string>
+
     <string name="export_title">Exportando</string>
     <string name="export_stage_horizontal">Creando versión horizontal 16:9…</string>
     <string name="export_stage_vertical">Guardando versión vertical 9:16…</string>

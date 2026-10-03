@@ -116,7 +116,8 @@ class CameraRecorder(private val context: Context) {
 
     fun newOutputFile(): File {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        return File(context.cacheDir, "recordings/rec_$stamp.mp4")
+        // filesDir (no cacheDir): el sistema no debe borrar una grabación pendiente de exportar.
+        return File(context.filesDir, "recordings/rec_$stamp.mp4")
     }
 
     /**

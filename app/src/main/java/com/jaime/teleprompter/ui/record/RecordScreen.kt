@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.os.Build
 import android.view.Surface
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -83,6 +84,16 @@ fun RecordScreen(
     }
     LaunchedEffect(Unit) { if (!hasPermission) permissionLauncher.launch(PERMISSIONS) }
 
+    // Para ver el progreso de la exportación en segundo plano. No es obligatorio para grabar.
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(hasPermission) {
+        if (hasPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     val finishedCallback by rememberUpdatedState(onRecordingFinished)
     LaunchedEffect(viewModel) { viewModel.finished.collect { finishedCallback() } }
 
@@ -95,6 +106,7 @@ fun RecordScreen(
     val script by viewModel.script.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val bandCenter by viewModel.bandCenter.collectAsStateWithLifecycle()
 
     val teleprompter = remember { TeleprompterState() }
     LaunchedEffect(ui.phase) {
@@ -112,7 +124,8 @@ fun RecordScreen(
         viewModel.bindCamera(lifecycleOwner, pv.surfaceProvider, settings.recording)
     }
 
-    LaunchedEffect(previewView, filter) { previewView?.applyFilter(filter) }
+    val previewFilter = remember(previewView) { previewView?.let { PreviewFilterController(it) } }
+    LaunchedEffect(previewFilter, filter) { previewFilter?.update(filter) }
 
     val displayRotation = { view.display?.rotation ?: Surface.ROTATION_90 }
     val busy = ui.phase != RecordPhase.IDLE
@@ -129,6 +142,8 @@ fun RecordScreen(
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 CameraFrame(
                     mode = settings.recording.previewMode,
+                    bandCenter = bandCenter,
+                    onBandCenter = viewModel::setBandCenter,
                     onPreviewView = { previewView = it },
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -153,6 +168,7 @@ fun RecordScreen(
                         selection = filter,
                         onSelect = viewModel::selectFilter,
                         onIntensity = viewModel::setFilterIntensity,
+                        onSmoothing = viewModel::setSkinSmoothing,
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color.Black.copy(alpha = 0.4f))

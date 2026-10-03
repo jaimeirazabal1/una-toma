@@ -6,18 +6,22 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jaime.teleprompter.AppContainer
 import com.jaime.teleprompter.data.ExportCoordinator
+import com.jaime.teleprompter.data.ExportScheduler
 import com.jaime.teleprompter.domain.ExportState
 import kotlinx.coroutines.flow.StateFlow
 
-class ExportViewModel(private val coordinator: ExportCoordinator) : ViewModel() {
+class ExportViewModel(
+    private val coordinator: ExportCoordinator,
+    private val scheduler: ExportScheduler,
+) : ViewModel() {
     val state: StateFlow<ExportState> = coordinator.state
 
-    fun cancel() = coordinator.cancel()
+    fun cancel() = scheduler.cancel()
     fun reset() = coordinator.reset()
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { ExportViewModel(container.exportCoordinator) }
+            initializer { ExportViewModel(container.exportCoordinator, container.exportScheduler) }
         }
     }
 }

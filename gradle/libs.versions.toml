@@ -9,6 +9,7 @@ camerax = "1.4.2"
 media3 = "1.7.1"
 datastore = "1.1.7"
 coroutines = "1.10.2"
+work = "2.10.2"
 junit = "4.13.2"
 
 [libraries]
@@ -31,6 +32,7 @@ androidx-media3-effect = { module = "androidx.media3:media3-effect", version.ref
 androidx-media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]

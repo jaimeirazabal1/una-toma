@@ -13,6 +13,8 @@ data class TeleprompterSettings(
     val speedDpPerSec: Float = DEFAULT_SPEED,
     val fontSizeSp: Float = DEFAULT_FONT_SIZE,
     val backgroundOpacity: Float = DEFAULT_OPACITY,
+    /** Texto en espejo, para leer a través de un cristal de teleprompter. */
+    val mirror: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_SPEED = 45f
@@ -23,6 +25,9 @@ data class TeleprompterSettings(
     }
 }
 
+/** Cómo se exporta el vertical: el original (4K, sin recomprimir) o 1080x1920 (más ligero). */
+enum class VerticalOutput { ORIGINAL, FHD }
+
 data class RecordingSettings(
     val quality: RecordingQuality = RecordingQuality.UHD_4K,
     val lens: Lens = Lens.FRONT,
@@ -30,6 +35,10 @@ data class RecordingSettings(
     val previewMode: PreviewMode = PreviewMode.BOTH,
     val filter: VideoFilter = VideoFilter.ORIGINAL,
     val filterIntensity: Float = 1f,
+    val skinSmoothing: Float = 0f,
+    /** Centro vertical de la franja 16:9 dentro del cuadro vertical (0 = arriba, 1 = abajo). */
+    val horizontalFrameCenter: Float = HorizontalFrame.DEFAULT_CENTER,
+    val verticalOutput: VerticalOutput = VerticalOutput.ORIGINAL,
 )
 
 data class UserSettings(

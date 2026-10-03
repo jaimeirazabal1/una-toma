@@ -81,7 +81,11 @@ fun TeleprompterOverlay(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight(align = Alignment.Top, unbounded = true)
-                .graphicsLayer { translationY = -state.offsetPx }
+                .graphicsLayer {
+                    translationY = -state.offsetPx
+                    // Espejo horizontal solo del texto (los gestos y la línea de lectura no se invierten).
+                    scaleX = if (settings.mirror) -1f else 1f
+                }
                 .onSizeChanged { state.contentPx = it.height.toFloat() }
                 .padding(start = 14.dp, end = 14.dp, top = topPad, bottom = bottomPad),
         )

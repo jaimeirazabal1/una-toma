@@ -4,6 +4,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class ColorFilterTest {
@@ -76,5 +77,82 @@ class ColorFilterTest {
         assertEquals(VideoFilter.COOL, timeline.selectionAt(9_000).filter)
         assertFalse(timeline.isIdentity)
         assertTrue(FilterTimeline.NONE.isIdentity)
+    }
+}
+
+class FilterTimelineTest {
+
+    @Test
+    fun `smoothing alone makes the selection non identity but keeps color identity`() {
+        val s = FilterSelection(VideoFilter.ORIGINAL, 1f, smoothing = 0.5f)
+        assertTrue(s.colorIsIdentity)
+        assertFalse(s.isIdentity)
+    }
+
+    @Test
+    fun `timeline reports color and smoothing separately`() {
+        val onlySmooth = FilterTimeline.Builder(FilterSelection(smoothing = 0.4f)).build()
+        assertFalse(onlySmooth.hasColor)
+        assertTrue(onlySmooth.hasSmoothing)
+        assertFalse(onlySmooth.isIdentity)
+    }
+
+    @Test
+    fun `rapid changes are throttled and keep the latest value`() {
+        val b = FilterTimeline.Builder(FilterSelection())
+        b.add(1_000, FilterSelection(VideoFilter.ROSE, 0.1f))
+        for (i in 1..50) b.add(1_000L + i * 10, FilterSelection(VideoFilter.ROSE, 0.1f + i * 0.01f))
+        val timeline = b.build()
+        // 51 cambios en 500 ms: como máximo uno cada 200 ms (más la entrada inicial).
+        assertTrue(timeline.entries.size <= 5)
+        assertEquals(0.6f, timeline.selectionAt(5_000).intensity, 1e-5f)
+    }
+
+    @Test
+    fun `entries are capped`() {
+        val b = FilterTimeline.Builder(FilterSelection())
+        for (i in 1..1_000) b.add(i * 500L, FilterSelection(VideoFilter.VIVID, (i % 10) / 10f))
+        assertTrue(b.build().entries.size <= FilterTimeline.MAX_ENTRIES)
+    }
+
+    @Test
+    fun `pack and unpack round trip`() {
+        val b = FilterTimeline.Builder(FilterSelection(VideoFilter.GLOW, 0.8f, 0.3f))
+        b.add(2_000, FilterSelection(VideoFilter.BLACK_AND_WHITE, 1f, 0f))
+        val original = b.build()
+        val copy = FilterTimeline.unpack(original.pack())
+        assertEquals(original.entries, copy.entries)
+    }
+}
+
+class HorizontalFrameTest {
+
+    @Test
+    fun `portrait 9x16 frame gives the 81 over 256 band`() {
+        assertEquals(HorizontalFrame.PORTRAIT_BAND_FRACTION, HorizontalFrame.bandFraction(2160, 3840), 1e-5f)
+    }
+
+    @Test
+    fun `centered band is symmetric in ndc`() {
+        val (bottom, top) = HorizontalFrame.cropNdc(0.5f, HorizontalFrame.PORTRAIT_BAND_FRACTION)
+        assertEquals(-bottom, top, 1e-5f)
+        assertEquals(HorizontalFrame.PORTRAIT_BAND_FRACTION * 2f, top - bottom, 1e-5f)
+    }
+
+    @Test
+    fun `band is clamped inside the frame`() {
+        val f = HorizontalFrame.PORTRAIT_BAND_FRACTION
+        val (_, topAtTop) = HorizontalFrame.cropNdc(-5f, f)
+        val (bottomAtBottom, _) = HorizontalFrame.cropNdc(5f, f)
+        assertEquals(1f, topAtTop, 1e-5f)
+        assertEquals(-1f, bottomAtBottom, 1e-5f)
+    }
+
+    @Test
+    fun `moving the center down lowers the crop window`() {
+        val f = HorizontalFrame.PORTRAIT_BAND_FRACTION
+        val (_, topLow) = HorizontalFrame.cropNdc(0.7f, f)
+        val (_, topMid) = HorizontalFrame.cropNdc(0.5f, f)
+        assertTrue(topLow < topMid)
     }
 }

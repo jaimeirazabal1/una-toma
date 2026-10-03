@@ -2,17 +2,20 @@ package com.jaime.teleprompter.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.jaime.teleprompter.domain.HorizontalFrame
 import com.jaime.teleprompter.domain.Lens
 import com.jaime.teleprompter.domain.PreviewMode
 import com.jaime.teleprompter.domain.RecordingQuality
 import com.jaime.teleprompter.domain.RecordingSettings
 import com.jaime.teleprompter.domain.TeleprompterSettings
 import com.jaime.teleprompter.domain.UserSettings
+import com.jaime.teleprompter.domain.VerticalOutput
 import com.jaime.teleprompter.domain.VideoFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -41,12 +44,16 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.SPEED] = new.teleprompter.speedDpPerSec
             prefs[Keys.FONT] = new.teleprompter.fontSizeSp
             prefs[Keys.OPACITY] = new.teleprompter.backgroundOpacity
+            prefs[Keys.MIRROR] = new.teleprompter.mirror
             prefs[Keys.QUALITY] = new.recording.quality.name
             prefs[Keys.LENS] = new.recording.lens.name
             prefs[Keys.COUNTDOWN] = new.recording.countdownSeconds
             prefs[Keys.PREVIEW_MODE] = new.recording.previewMode.name
             prefs[Keys.FILTER] = new.recording.filter.name
             prefs[Keys.FILTER_INTENSITY] = new.recording.filterIntensity
+            prefs[Keys.SKIN_SMOOTHING] = new.recording.skinSmoothing
+            prefs[Keys.BAND_CENTER] = new.recording.horizontalFrameCenter
+            prefs[Keys.VERTICAL_OUTPUT] = new.recording.verticalOutput.name
         }
     }
 
@@ -55,6 +62,7 @@ class SettingsRepository(private val context: Context) {
             speedDpPerSec = this[Keys.SPEED] ?: TeleprompterSettings.DEFAULT_SPEED,
             fontSizeSp = this[Keys.FONT] ?: TeleprompterSettings.DEFAULT_FONT_SIZE,
             backgroundOpacity = this[Keys.OPACITY] ?: TeleprompterSettings.DEFAULT_OPACITY,
+            mirror = this[Keys.MIRROR] ?: false,
         ),
         recording = RecordingSettings(
             quality = enumOrDefault(this[Keys.QUALITY], RecordingQuality.UHD_4K),
@@ -63,6 +71,9 @@ class SettingsRepository(private val context: Context) {
             previewMode = enumOrDefault(this[Keys.PREVIEW_MODE], PreviewMode.BOTH),
             filter = enumOrDefault(this[Keys.FILTER], VideoFilter.ORIGINAL),
             filterIntensity = this[Keys.FILTER_INTENSITY] ?: 1f,
+            skinSmoothing = this[Keys.SKIN_SMOOTHING] ?: 0f,
+            horizontalFrameCenter = this[Keys.BAND_CENTER] ?: HorizontalFrame.DEFAULT_CENTER,
+            verticalOutput = enumOrDefault(this[Keys.VERTICAL_OUTPUT], VerticalOutput.ORIGINAL),
         ),
     )
 
@@ -80,6 +91,10 @@ class SettingsRepository(private val context: Context) {
         val PREVIEW_MODE = stringPreferencesKey("preview_mode")
         val FILTER = stringPreferencesKey("filter")
         val FILTER_INTENSITY = floatPreferencesKey("filter_intensity")
+        val SKIN_SMOOTHING = floatPreferencesKey("skin_smoothing")
+        val BAND_CENTER = floatPreferencesKey("band_center")
+        val VERTICAL_OUTPUT = stringPreferencesKey("vertical_output")
+        val MIRROR = booleanPreferencesKey("mirror")
     }
 
     private companion object {
