@@ -20,9 +20,7 @@
     <string name="font_label">Tamaño de letra: %1$d sp</string>
     <string name="opacity_label">Fondo: %1$d%%</string>
 
-    <string name="record_close">Cerrar</string>
-    <string name="record_settings">Ajustes</string>
-    <string name="record_hide_settings">Ocultar</string>
+    <string name="record_close">Volver</string>
     <string name="record_play_text">▶ Texto</string>
     <string name="record_pause_text">⏸ Texto</string>
     <string name="record_restart_text">⏮ Inicio</string>

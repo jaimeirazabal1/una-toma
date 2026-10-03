@@ -19,18 +19,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -65,7 +61,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jaime.teleprompter.R
 import com.jaime.teleprompter.domain.PreviewMode
-import com.jaime.teleprompter.ui.components.TeleprompterSettingsControls
 
 private val PERMISSIONS = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
 
@@ -123,16 +118,12 @@ fun RecordScreen(
     val busy = ui.phase != RecordPhase.IDLE
     BackHandler(enabled = busy) { viewModel.onRecordClick(displayRotation()) }
 
-    var showSettings by remember { mutableStateOf(false) }
-
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             TopBar(
                 busy = busy,
-                showSettings = showSettings,
                 previewMode = settings.recording.previewMode,
                 onClose = onClose,
-                onToggleSettings = { showSettings = !showSettings },
                 onPreviewMode = viewModel::setPreviewMode,
             )
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -158,20 +149,6 @@ fun RecordScreen(
                 }
                 // Capas sobre la imagen (no ocupan espacio): el preview conserva siempre su tamaño.
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
-                    if (showSettings) {
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 6.dp),
-                        ) {
-                            Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp)) {
-                                TeleprompterSettingsControls(
-                                    settings = settings.teleprompter,
-                                    onChange = viewModel::updateTeleprompter,
-                                )
-                            }
-                        }
-                    }
                     FilterBar(
                         selection = filter,
                         onSelect = viewModel::selectFilter,
@@ -221,10 +198,8 @@ private fun PortraitAndKeepAwake(context: Context, view: android.view.View) {
 @Composable
 private fun TopBar(
     busy: Boolean,
-    showSettings: Boolean,
     previewMode: PreviewMode,
     onClose: () -> Unit,
-    onToggleSettings: () -> Unit,
     onPreviewMode: (PreviewMode) -> Unit,
 ) {
     Row(
@@ -233,9 +208,6 @@ private fun TopBar(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         TextButton(onClick = onClose, enabled = !busy) { Text(stringResource(R.string.record_close)) }
-        TextButton(onClick = onToggleSettings) {
-            Text(stringResource(if (showSettings) R.string.record_hide_settings else R.string.record_settings))
-        }
         val modes = listOf(
             PreviewMode.VERTICAL to R.string.preview_vertical,
             PreviewMode.HORIZONTAL to R.string.preview_horizontal,
