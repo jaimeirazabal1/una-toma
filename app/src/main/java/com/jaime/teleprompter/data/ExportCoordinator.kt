@@ -2,6 +2,7 @@ package com.jaime.teleprompter.data
 
 import com.jaime.teleprompter.domain.ExportStage
 import com.jaime.teleprompter.domain.ExportState
+import com.jaime.teleprompter.domain.FilterTimeline
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -18,7 +19,8 @@ import java.util.Locale
  * Orquesta la exportación a los dos formatos. Vive a nivel de aplicación (no de pantalla)
  * para que una rotación o navegar atrás no interrumpa la exportación.
  *
- * - Vertical: el original (grabado en vertical), sin recomprimir: cero pérdida de calidad.
+ * - Vertical: el original (grabado en vertical), sin recomprimir si no hay filtros; con filtros se
+ *   re-codifica a la misma resolución.
  * - Horizontal: recorte central 16:9 a 1920x1080.
  */
 class ExportCoordinator(
@@ -32,17 +34,27 @@ class ExportCoordinator(
 
     private var job: Job? = null
 
-    fun start(source: File) {
+    fun start(source: File, filters: FilterTimeline = FilterTimeline.NONE) {
         if (job?.isActive == true) return
         job = scope.launch {
             val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val verticalTemp = File(cacheDir, "vertical_$stamp.mp4")
             val horizontalTemp = File(cacheDir, "horizontal_$stamp.mp4")
             try {
-                _state.value = ExportState.Running(ExportStage.VERTICAL, 0f)
-                val verticalUri = saver.saveVideo(source, "tp_${stamp}_vertical.mp4")
+                // Sin filtros el vertical es el original (sin recomprimir); con filtros se re-codifica.
+                val verticalUri = if (filters.isIdentity) {
+                    _state.value = ExportState.Running(ExportStage.VERTICAL, null)
+                    saver.saveVideo(source, "tp_${stamp}_vertical.mp4")
+                } else {
+                    _state.value = ExportState.Running(ExportStage.VERTICAL, 0f)
+                    exporter.exportVertical(source, verticalTemp, filters) { progress ->
+                        _state.value = ExportState.Running(ExportStage.VERTICAL, progress)
+                    }
+                    saver.saveVideo(verticalTemp, "tp_${stamp}_vertical.mp4")
+                }
 
                 _state.value = ExportState.Running(ExportStage.HORIZONTAL, 0f)
-                exporter.exportHorizontal(source, horizontalTemp) { progress ->
+                exporter.exportHorizontal(source, horizontalTemp, filters) { progress ->
                     _state.value = ExportState.Running(ExportStage.HORIZONTAL, progress)
                 }
                 val horizontalUri = saver.saveVideo(horizontalTemp, "tp_${stamp}_horizontal.mp4")
@@ -56,6 +68,7 @@ class ExportCoordinator(
                 _state.value = ExportState.Failed(e.message ?: e.javaClass.simpleName)
             } finally {
                 horizontalTemp.delete()
+                verticalTemp.delete()
             }
         }
     }

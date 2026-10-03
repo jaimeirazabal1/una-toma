@@ -99,6 +99,7 @@ fun RecordScreen(
     val settings = viewModel.settings.collectAsStateWithLifecycle().value ?: return
     val script by viewModel.script.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val filter by viewModel.filter.collectAsStateWithLifecycle()
 
     val teleprompter = remember { TeleprompterState() }
     LaunchedEffect(ui.phase) {
@@ -115,6 +116,8 @@ fun RecordScreen(
         val pv = previewView ?: return@LaunchedEffect
         viewModel.bindCamera(lifecycleOwner, pv.surfaceProvider, settings.recording)
     }
+
+    LaunchedEffect(previewView, filter) { previewView?.applyFilter(filter) }
 
     val displayRotation = { view.display?.rotation ?: Surface.ROTATION_90 }
     val busy = ui.phase != RecordPhase.IDLE
@@ -180,6 +183,12 @@ fun RecordScreen(
                     }
                 }
             }
+            FilterBar(
+                selection = filter,
+                onSelect = viewModel::selectFilter,
+                onIntensity = viewModel::setFilterIntensity,
+                modifier = Modifier.padding(top = 6.dp),
+            )
             BottomBar(
                 ui = ui,
                 teleprompter = teleprompter,

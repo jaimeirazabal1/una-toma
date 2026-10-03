@@ -38,6 +38,9 @@ video en dos formatos listos para subir:
   - un toque pausa o reanuda;
   - arrastra con el dedo para adelantar o retroceder mientras el texto sigue corriendo;
   - reinicio rápido y cuenta atrás antes de grabar.
+- **Filtros a un toque:** Natural, Glow, Rosado, Cálido, Frío, Vívido, Cine, Vintage y B/N, con control de
+  intensidad. Se ven en vivo en el preview, se pueden cambiar mientras grabas y quedan en los dos videos
+  exportados. El video se graba limpio y el filtro se aplica al exportar.
 - **Exportación automática** a la galería (`Movies/Teleprompter`) y botón para compartir ambos archivos.
 - El guion y los ajustes se guardan solos.
 
@@ -45,7 +48,8 @@ video en dos formatos listos para subir:
 
 Se graba un único archivo vertical a máxima resolución.
 
-- La versión **vertical** es ese archivo tal cual: cero pérdida de calidad.
+- La versión **vertical** es ese archivo tal cual: cero pérdida de calidad. Si usaste filtros, se
+  re-codifica a la misma resolución aplicándolos.
 - La versión **horizontal** es un recorte central 16:9 re-codificado en H.264
   con Media3 Transformer. Como parte de 4K (2160 px de ancho), el resultado es
   1080p reales, sin escalar hacia arriba.
@@ -73,6 +77,11 @@ app/src/main/java/com/jaime/teleprompter/
 
 Decisiones de diseño:
 
+- **Filtros = una matriz de color.** Cada filtro se reduce a una transformación afín `out = A·in + b`
+  (`ColorAffine`). La misma matriz alimenta el preview (`ColorMatrixColorFilter`) y la exportación
+  (`RgbMatrix` de Media3), así que lo que ves es lo que sale. La intensidad es una interpolación lineal.
+- **Línea de tiempo de filtros.** Si cambias de filtro grabando, se anota el instante y la exportación
+  aplica cada filtro en su tramo (`FilterTimeline`).
 - **Una sola grabación, dos salidas.** Evita grabar dos veces y garantiza que
   ambos formatos son exactamente la misma toma.
 - **`TeleprompterMath` separado de Compose.** La lógica del scroll es una
@@ -105,6 +114,7 @@ o superior (minSdk 29). La cámara requiere un dispositivo físico.
 - [ ] Exportación en segundo plano (WorkManager + servicio en primer plano)
 - [ ] Reencuadre manual de la franja horizontal
 - [ ] Opción de bajar el vertical a 1080×1920 para archivos más ligeros
+- [ ] Filtros de retoque de piel (suavizado) con shader propio
 - [ ] Espejo del texto para uso con cristal de teleprompter
 - [ ] Ícono monocromático y localización a inglés
 

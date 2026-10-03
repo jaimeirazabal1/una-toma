@@ -28,6 +28,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 sealed interface RecordingEvent {
+    /** La grabación empezó de verdad (el archivo ya recibe frames). */
+    data object Started : RecordingEvent
     data class Progress(val elapsedMs: Long) : RecordingEvent
     data class Finished(val file: File) : RecordingEvent
     data class Failed(val code: Int) : RecordingEvent
@@ -91,6 +93,7 @@ class CameraRecorder(private val context: Context) {
             .withAudioEnabled()
             .start(ContextCompat.getMainExecutor(context)) { event ->
                 when (event) {
+                    is VideoRecordEvent.Start -> onEvent(RecordingEvent.Started)
                     is VideoRecordEvent.Status ->
                         onEvent(RecordingEvent.Progress(event.recordingStats.recordedDurationNanos / 1_000_000))
                     is VideoRecordEvent.Finalize -> {

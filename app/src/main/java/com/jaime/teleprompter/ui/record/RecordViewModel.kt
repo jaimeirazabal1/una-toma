@@ -14,10 +14,18 @@ import com.jaime.teleprompter.camera.RecordingEvent
 import com.jaime.teleprompter.data.ExportCoordinator
 import com.jaime.teleprompter.data.SettingsRepository
 import com.jaime.teleprompter.domain.PreviewMode
+import com.jaime.teleprompter.domain.VideoFilter
 import com.jaime.teleprompter.domain.RecordingSettings
 import com.jaime.teleprompter.domain.TeleprompterSettings
 import com.jaime.teleprompter.domain.UserSettings
+import android.os.SystemClock
+import com.jaime.teleprompter.domain.FilterSelection
+import com.jaime.teleprompter.domain.FilterTimeline
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -39,6 +47,7 @@ data class RecordUiState(
     val errorCode: Int? = null,
 )
 
+@OptIn(FlowPreview::class)
 class RecordViewModel(
     private val settingsRepository: SettingsRepository,
     private val recorder: CameraRecorder,
@@ -59,6 +68,35 @@ class RecordViewModel(
     val finished = _finished.receiveAsFlow()
 
     private var countdownJob: Job? = null
+
+    /** Filtro activo. Vive aquí (no solo en DataStore) para que el cambio se vea al instante. */
+    private val _filter = MutableStateFlow(FilterSelection.NONE)
+    val filter: StateFlow<FilterSelection> = _filter.asStateFlow()
+
+    private var timelineBuilder: FilterTimeline.Builder? = null
+    private var recordingStartedAt = 0L
+
+    init {
+        viewModelScope.launch {
+            val saved = settingsRepository.settings.first().recording
+            _filter.value = FilterSelection(saved.filter, saved.filterIntensity)
+            _filter.drop(1).debounce(400).collect { selection ->
+                settingsRepository.updateRecording {
+                    it.copy(filter = selection.filter, filterIntensity = selection.intensity)
+                }
+            }
+        }
+    }
+
+    fun selectFilter(filter: VideoFilter) = changeFilter(_filter.value.copy(filter = filter))
+
+    fun setFilterIntensity(intensity: Float) = changeFilter(_filter.value.copy(intensity = intensity))
+
+    private fun changeFilter(selection: FilterSelection) {
+        _filter.value = selection
+        // Si estamos grabando, anotamos cuándo cambió para aplicarlo en ese instante al exportar.
+        timelineBuilder?.add(SystemClock.elapsedRealtime() - recordingStartedAt, selection)
+    }
 
     suspend fun bindCamera(
         owner: LifecycleOwner,
@@ -107,14 +145,22 @@ class RecordViewModel(
 
     private fun onRecordingEvent(event: RecordingEvent) {
         when (event) {
+            RecordingEvent.Started -> {
+                recordingStartedAt = SystemClock.elapsedRealtime()
+                timelineBuilder = FilterTimeline.Builder(_filter.value)
+            }
             is RecordingEvent.Progress -> _ui.value = _ui.value.copy(elapsedMs = event.elapsedMs)
             is RecordingEvent.Finished -> {
                 _ui.value = RecordUiState()
-                exports.start(event.file)
+                exports.start(event.file, timelineBuilder?.build() ?: FilterTimeline.NONE)
+                timelineBuilder = null
                 _finished.trySend(Unit)
             }
-            is RecordingEvent.Failed -> _ui.value =
-                RecordUiState(errorRes = R.string.error_recording, errorCode = event.code)
+            is RecordingEvent.Failed -> {
+                timelineBuilder = null
+                _ui.value =
+                    RecordUiState(errorRes = R.string.error_recording, errorCode = event.code)
+            }
         }
     }
 

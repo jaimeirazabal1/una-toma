@@ -6,7 +6,10 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.Effect
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.RgbMatrix
+import com.jaime.teleprompter.domain.FilterTimeline
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
@@ -35,7 +38,32 @@ import kotlin.coroutines.resumeWithException
 @OptIn(UnstableApi::class)
 class VideoExporter(private val context: Context) {
 
-    suspend fun exportHorizontal(input: File, output: File, onProgress: (Float) -> Unit) {
+    /** Vertical con filtros: se re-codifica a la resolución original aplicando el filtro de cada tramo. */
+    suspend fun exportVertical(input: File, output: File, filters: FilterTimeline, onProgress: (Float) -> Unit) =
+        transcode(input, output, listOfNotNull(filterEffect(filters)), VERTICAL_BITRATE, onProgress)
+
+    /** Horizontal: recorte central 16:9 a 1920x1080 y, si hay, filtros. */
+    suspend fun exportHorizontal(input: File, output: File, filters: FilterTimeline, onProgress: (Float) -> Unit) {
+        val crop = Presentation.createForWidthAndHeight(OUT_WIDTH, OUT_HEIGHT, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+        transcode(input, output, listOfNotNull(crop, filterEffect(filters)), OUT_BITRATE, onProgress)
+    }
+
+    private fun filterEffect(filters: FilterTimeline): Effect? =
+        if (filters.isIdentity) null else TimelineRgbMatrix(filters)
+
+    /** Matriz de color que cambia con el tiempo según la línea de tiempo de filtros. */
+    private class TimelineRgbMatrix(private val timeline: FilterTimeline) : RgbMatrix {
+        override fun getMatrix(presentationTimeUs: Long, useHdr: Boolean): FloatArray =
+            timeline.selectionAt(presentationTimeUs / 1_000).affine().toMedia3Matrix()
+    }
+
+    private suspend fun transcode(
+        input: File,
+        output: File,
+        videoEffects: List<Effect>,
+        bitrate: Int,
+        onProgress: (Float) -> Unit,
+    ) {
         // Transformer exige un hilo con Looper: usamos Main (el trabajo pesado va en el codec de hardware).
         withContext(Dispatchers.Main.immediate) {
             coroutineScope {
@@ -60,7 +88,7 @@ class VideoExporter(private val context: Context) {
                             .setEncoderFactory(
                                 DefaultEncoderFactory.Builder(context)
                                     .setRequestedVideoEncoderSettings(
-                                        VideoEncoderSettings.Builder().setBitrate(OUT_BITRATE).build(),
+                                        VideoEncoderSettings.Builder().setBitrate(bitrate).build(),
                                     )
                                     .build(),
                             )
@@ -80,13 +108,8 @@ class VideoExporter(private val context: Context) {
                             .build()
                         activeTransformer = transformer
 
-                        val horizontalFrame = Presentation.createForWidthAndHeight(
-                            OUT_WIDTH,
-                            OUT_HEIGHT,
-                            Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP,
-                        )
                         val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(input)))
-                            .setEffects(Effects(emptyList(), listOf(horizontalFrame)))
+                            .setEffects(Effects(emptyList(), videoEffects))
                             .build()
 
                         continuation.invokeOnCancellation {
@@ -107,6 +130,7 @@ class VideoExporter(private val context: Context) {
         const val OUT_WIDTH = 1920
         const val OUT_HEIGHT = 1080
         const val OUT_BITRATE = 16_000_000
+        const val VERTICAL_BITRATE = 40_000_000
         const val PROGRESS_POLL_MS = 200L
     }
 }

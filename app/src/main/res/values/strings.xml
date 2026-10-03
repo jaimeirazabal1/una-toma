@@ -36,6 +36,18 @@
     <string name="error_camera">No se pudo iniciar la cámara.</string>
     <string name="error_recording">Error al grabar (código %1$d).</string>
 
+    <string name="filter_original">Original</string>
+    <string name="filter_natural">Natural</string>
+    <string name="filter_glow">Glow</string>
+    <string name="filter_rose">Rosado</string>
+    <string name="filter_warm">Cálido</string>
+    <string name="filter_cool">Frío</string>
+    <string name="filter_vivid">Vívido</string>
+    <string name="filter_cine">Cine</string>
+    <string name="filter_vintage">Vintage</string>
+    <string name="filter_bw">B/N</string>
+    <string name="filter_intensity">Intensidad %1$d%%</string>
+
     <string name="export_title">Exportando</string>
     <string name="export_stage_horizontal">Creando versión horizontal 16:9…</string>
     <string name="export_stage_vertical">Guardando versión vertical 9:16…</string>

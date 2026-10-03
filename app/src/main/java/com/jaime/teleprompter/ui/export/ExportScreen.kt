@@ -58,8 +58,9 @@ fun ExportScreen(viewModel: ExportViewModel, onFinished: () -> Unit) {
                             else R.string.export_stage_horizontal,
                         ),
                     )
-                    if (s.stage == ExportStage.HORIZONTAL) {
-                        LinearProgressIndicator(progress = { s.progress }, modifier = Modifier.fillMaxWidth())
+                    val progress = s.progress
+                    if (progress != null) {
+                        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }

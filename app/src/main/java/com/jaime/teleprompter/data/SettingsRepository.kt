@@ -13,6 +13,7 @@ import com.jaime.teleprompter.domain.RecordingQuality
 import com.jaime.teleprompter.domain.RecordingSettings
 import com.jaime.teleprompter.domain.TeleprompterSettings
 import com.jaime.teleprompter.domain.UserSettings
+import com.jaime.teleprompter.domain.VideoFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -44,6 +45,8 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.LENS] = new.recording.lens.name
             prefs[Keys.COUNTDOWN] = new.recording.countdownSeconds
             prefs[Keys.PREVIEW_MODE] = new.recording.previewMode.name
+            prefs[Keys.FILTER] = new.recording.filter.name
+            prefs[Keys.FILTER_INTENSITY] = new.recording.filterIntensity
         }
     }
 
@@ -58,6 +61,8 @@ class SettingsRepository(private val context: Context) {
             lens = enumOrDefault(this[Keys.LENS], Lens.FRONT),
             countdownSeconds = this[Keys.COUNTDOWN] ?: 3,
             previewMode = enumOrDefault(this[Keys.PREVIEW_MODE], PreviewMode.BOTH),
+            filter = enumOrDefault(this[Keys.FILTER], VideoFilter.ORIGINAL),
+            filterIntensity = this[Keys.FILTER_INTENSITY] ?: 1f,
         ),
     )
 
@@ -73,6 +78,8 @@ class SettingsRepository(private val context: Context) {
         val LENS = stringPreferencesKey("lens")
         val COUNTDOWN = intPreferencesKey("countdown")
         val PREVIEW_MODE = stringPreferencesKey("preview_mode")
+        val FILTER = stringPreferencesKey("filter")
+        val FILTER_INTENSITY = floatPreferencesKey("filter_intensity")
     }
 
     private companion object {

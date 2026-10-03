@@ -28,6 +28,8 @@ data class RecordingSettings(
     val lens: Lens = Lens.FRONT,
     val countdownSeconds: Int = 3,
     val previewMode: PreviewMode = PreviewMode.BOTH,
+    val filter: VideoFilter = VideoFilter.ORIGINAL,
+    val filterIntensity: Float = 1f,
 )
 
 data class UserSettings(
@@ -39,7 +41,8 @@ enum class ExportStage { HORIZONTAL, VERTICAL }
 
 sealed interface ExportState {
     data object Idle : ExportState
-    data class Running(val stage: ExportStage, val progress: Float) : ExportState
+    /** [progress] null = indeterminado (p. ej. copia del original). */
+    data class Running(val stage: ExportStage, val progress: Float?) : ExportState
     data class Done(val horizontal: Uri, val vertical: Uri) : ExportState
     data class Failed(val message: String) : ExportState
 }
