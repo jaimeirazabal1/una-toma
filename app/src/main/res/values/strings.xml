@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Una Toma</string>
+
+    <string name="script_title">Tu guion</string>
+    <string name="script_hint">Escribe o pega el texto que vas a leer</string>
+    <string name="section_recording">Grabación</string>
+    <string name="section_teleprompter">Teleprompter</string>
+    <string name="quality_label">Calidad</string>
+    <string name="quality_4k">4K</string>
+    <string name="quality_fhd">1080p</string>
+    <string name="lens_label">Cámara</string>
+    <string name="lens_front">Frontal</string>
+    <string name="lens_back">Trasera</string>
+    <string name="countdown_label">Cuenta atrás: %1$d s</string>
+    <string name="go_record">Ir a grabar</string>
+    <string name="script_footer">Se graba una vez en vertical y se exporta en vertical 9:16 (Reels, TikTok, Shorts) y en horizontal 16:9 (YouTube). Usa 4K para que el horizontal salga en 1080p real.</string>
+
+    <string name="speed_label">Velocidad: %1$d</string>
+    <string name="font_label">Tamaño de letra: %1$d sp</string>
+    <string name="opacity_label">Fondo: %1$d%%</string>
+
+    <string name="record_close">Cerrar</string>
+    <string name="record_settings">Ajustes</string>
+    <string name="record_hide_settings">Ocultar</string>
+    <string name="record_play_text">▶ Texto</string>
+    <string name="record_pause_text">⏸ Texto</string>
+    <string name="record_restart_text">⏮ Inicio</string>
+    <string name="record_button_cd">Grabar o detener</string>
+    <string name="preview_horizontal">16:9</string>
+    <string name="preview_vertical">9:16</string>
+    <string name="preview_both">Ambos</string>
+    <string name="paused_badge">PAUSA</string>
+    <string name="permission_needed">Necesito permiso de cámara y micrófono para grabar.</string>
+    <string name="permission_grant">Conceder permisos</string>
+    <string name="error_camera">No se pudo iniciar la cámara.</string>
+    <string name="error_recording">Error al grabar (código %1$d).</string>
+
+    <string name="export_title">Exportando</string>
+    <string name="export_stage_horizontal">Creando versión horizontal 16:9…</string>
+    <string name="export_stage_vertical">Guardando versión vertical 9:16…</string>
+    <string name="export_cancel">Cancelar</string>
+    <string name="export_done_title">¡Listo!</string>
+    <string name="export_done_body">Guardados en la galería, carpeta Movies/Teleprompter.</string>
+    <string name="export_horizontal_desc">Horizontal 16:9 · YouTube</string>
+    <string name="export_vertical_desc">Vertical 9:16 · Reels, TikTok, Shorts</string>
+    <string name="export_share">Compartir</string>
+    <string name="export_share_chooser">Compartir vídeos</string>
+    <string name="export_new">Grabar otro</string>
+    <string name="export_failed">La exportación falló: %1$s</string>
+    <string name="export_back">Volver</string>
+</resources>
